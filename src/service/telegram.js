@@ -14,9 +14,9 @@ bot.on('polling_error', (error) => {
 });
 
 class Telegram {
-  async enviarMensagem(codigoB3, precoAtual, cotacaoAlvo, tipo) {
+  async sendMessage(symbol, currentPrice, targetPrice, type) {
 	try {
-	  bot.sendMessage(chatId, `${tipo}! ${codigoB3} atingiu o preço de R$ ${precoAtual} | Cotação alvo R$ ${cotacaoAlvo}`);
+	  bot.sendMessage(chatId, `${type}! ${symbol} atingiu o preço de R$ ${currentPrice} | Cotação alvo R$ ${targetPrice}`);
 	  console.info(`Mensagem enviada com sucesso`);
 	} catch (error) {
       console.error(`Erro ao enviar mensagem no Telegram - ${error}`);

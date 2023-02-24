@@ -10,67 +10,65 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
 
 require('dotenv').config();
 
-const B3 = require('./service/B3');
-const serviceB3 = new B3();
+const Yahoo = require('./service/Yahoo');
+const serviceYahoo = new Yahoo();
+
 const Telegram = require('./service/Telegram');
 const serviceTelegram = new Telegram();
 
-const { setTimeout } = require('timers');
+const cron = require('node-cron');
 
 
-const COMPRA_ACOES_MAP = new Map([
+const STOCKS_MAP = new Map([
   //FIIs
   ['XPPR11', 25.00],
   ['XPML11', 92.00],
-  ['BTLG11', 92.80],
+  ['BTLG11', 91.80],
   ['KNRI11', 125.00],
+  ['MXRF11', 13.15],
+  ['CPTS11', 97.09],
+  ['HCTR11', 119.40],
   //Ações
   ['BBSE3', 28.00],
   ['SANB4', 15.00],
   ['ITSA4', 8.00],
   ['TAEE4', 11.00],
   ['KLBN4', 3.70],
-]);
-
-const VENDA_ACOES_MAP = new Map([
-  //FIIs
-  ['MXRF11', 10.15],
-  ['CPTS11', 78.09],
-  ['HCTR11', 89.40],
-  //Ações
   ['CASH3', 2.30],
   ['IRBR3', 40.00],
 ]);
 
-const intervalo = 300000; // intervalo de consulta em milissegundos (300 segundos)
+const BUY = ['XPPR11', 'XPML11', 'BTLG11', 'KNRI11', 'BBSE3', 'SANB4', 'ITSA4', 'TAEE4', 'KLBN4']
+const SELL = ['MXRF11','CPTS11', 'HCTR11', 'CASH3', 'IRBR3'];
 
-setInterval(async () => {
-  console.log(`Iniciando consulta ações ${new Date()}`);
+const FIIS = ['XPPR11', 'XPML11', 'BTLG11', 'KNRI11', 'MXRF11','CPTS11', 'HCTR11']
+const STOCKS = ['BBSE3', 'SANB4', 'ITSA4', 'TAEE4', 'KLBN4', 'CASH3', 'IRBR3']
+
+//cron.schedule('*/5 9-18 * * 1-5', async () => {
+cron.schedule('*/1 * * * 1-5', async () => {
+  console.log(`Iniciando consulta de Ações/FIIs ${new Date()}`);
 	
-  for (const [codigo, cotacaoAlvo] of COMPRA_ACOES_MAP) {
-	try {
-	  const precoAtual = await serviceB3.solicitarDadosB3Summary(codigo);
+  for (const [symbol, targetPrice] of STOCKS_MAP) {
+    try {
+      const currentPrice = await serviceYahoo.priceData(symbol);
 
-	  if (precoAtual <= cotacaoAlvo) {
-		serviceTelegram.enviarMensagem(codigo, precoAtual.toFixed(2), cotacaoAlvo.toFixed(2), 'Compra');
-	  }
-	} catch (error) {
-	  console.error(`Erro ao consultar a ação ${codigo}: ${error.message}`);
-	}
-  }
-  
-  for (const [codigo, cotacaoAlvo] of VENDA_ACOES_MAP) {
-	try {
-	  const precoAtual = await serviceB3.solicitarDadosB3Summary(codigo);
+      if (BUY.includes(symbol) && currentPrice <= targetPrice) {
+        await serviceTelegram.sendMessage(symbol, currentPrice.toFixed(2), targetPrice.toFixed(2), 'COMPRA');
+      } else if (SELL.includes(symbol) && currentPrice > targetPrice) {
+        await serviceTelegram.sendMessage(symbol, currentPrice.toFixed(2), targetPrice.toFixed(2), 'VENDA');
+      }
 
-	  if (precoAtual > cotacaoAlvo) {
-		serviceTelegram.enviarMensagem(codigo, precoAtual.toFixed(2), cotacaoAlvo.toFixed(2), 'Venda');
-	  }
-	} catch (error) {
-	  console.error(`Erro ao consultar a ação ${codigo}: ${error.message}`);
-	}
+      if (STOCKS.includes(symbol)) {
+        serviceYahoo.analyzeStock(symbol);
+      }
+    } catch (error) {
+      console.error(`Erro ao consultar a ação ${symbol}: ${error.message}`);
+    }
   }
-}, intervalo);
+}, {
+  scheduled: true,
+  timezone: "America/Sao_Paulo"
+});
 
 
 if (process.env.NODE_ENV !== 'dev') {
