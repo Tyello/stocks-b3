@@ -59,7 +59,7 @@ cron.schedule('*/1 * * * 1-5', async () => {
       }
 
       if (STOCKS.includes(symbol)) {
-        serviceYahoo.analyzeStock(symbol);
+        //serviceYahoo.analyzeStock(symbol);
       }
     } catch (error) {
       console.error(`Erro ao consultar a ação ${symbol}: ${error.message}`);

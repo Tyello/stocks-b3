@@ -1,6 +1,4 @@
 const axios = require('axios');
-const yahooFinanceAPI = require('yahoo-finance-api-v2');
-const yahooFinance = new yahooFinanceAPI();
 
 const urlBase = 'https://query1.finance.yahoo.com/v10/finance/quoteSummary';
 
@@ -31,7 +29,7 @@ class Yahoo {
 
   async financialData(symbol) {
     try {
-      const url = `${urlBase}/${symbol}.SA?modules=financialData,defaultKeyStatistics,assetProfile`;
+      const url = `${urlBase}/${symbol}.SA?modules=financialData,defaultKeyStatistics`;
       //console.info(url);
 
       const response = await axios.get(url);
@@ -42,19 +40,16 @@ class Yahoo {
         throw new Error(`Dados inválidos para ${symbol}.`);
       }
 
-      const assetProfile = quoteSummary.assetProfile;
       const financialData = quoteSummary.financialData;
       const keyStatistics = quoteSummary.defaultKeyStatistics;
       return {
-        industry: assetProfile.industry,
-        sector: assetProfile.sector,
         price: financialData.currentPrice.raw,
-        bookValue: keyStatistics.bookValue.raw,
-        eps: keyStatistics.trailingEps.raw,
-        dividend: keyStatistics.lastDividendValue ? keyStatistics.lastDividendValue.raw : 0,
-        fcf: financialData.freeCashflow.raw ? financialData.freeCashflow.raw : 0,
-        roe: financialData.returnOnEquity.raw,
-        sharesOutstanding: keyStatistics.sharesOutstanding.raw,
+        bookValue: Object.keys(keyStatistics.bookValue).length !== 0 && keyStatistics.bookValue.constructor === Object ? keyStatistics.bookValue.raw : 0,
+        eps: Object.keys(keyStatistics.trailingEps).length !== 0 && keyStatistics.trailingEps.constructor === Object ? keyStatistics.trailingEps.raw : 0,
+        dividend: Object.keys(keyStatistics.lastDividendValue).length !== 0 && keyStatistics.lastDividendValue.constructor === Object ? keyStatistics.lastDividendValue.raw : 0,
+        fcf: Object.keys(financialData.freeCashflow).length !== 0 && financialData.freeCashflowconstructor === Object ? financialData.freeCashflow.raw : 0,
+        roe: Object.keys(financialData.returnOnEquity).length !== 0 && financialData.returnOnEquity.constructor === Object ? financialData.returnOnEquity.raw : 0,
+        sharesOutstanding: Object.keys(keyStatistics.sharesOutstanding).length !== 0 && keyStatistics.sharesOutstanding.constructor === Object ? keyStatistics.sharesOutstanding.raw : 0,
         longTermGrowthRate: 0.03, // assume uma taxa de crescimento de longo prazo de 3%
       };
     } catch (error) {
@@ -64,14 +59,23 @@ class Yahoo {
   }
   
   calcularPl(financialData) {
+    if (financialData.eps === 0 ) {
+      return 0;
+    }
     return financialData.price / financialData.eps;
   }
   
   calcularPvp(financialData) {
+    if (financialData.bookValue === 0 ) {
+      return 0;
+    }
     return financialData.price / financialData.bookValue;
   }
   
   calcularDividendYield(financialData) {
+    if (financialData.price === 0 ) {
+      return 0;
+    }
     return financialData.dividend / financialData.price;
   }
   
@@ -83,8 +87,8 @@ class Yahoo {
       const dividendYield = this.calcularDividendYield(financialData);
       const fcf = financialData.fcf;
       const roe = financialData.roe;
-      const rightPrice = this.calculateRightPrice(financialData);
-      const analyzePrice = this.analyzePrice(financialData.price, rightPrice);
+      //const rightPrice = this.calculateRightPrice(financialData);
+      //const analyzePrice = this.analyzePrice(financialData.price, rightPrice);
       const intrinsicValue = this.calculateIntrinsicValue(financialData);
 
       console.log(`=====================================`);
